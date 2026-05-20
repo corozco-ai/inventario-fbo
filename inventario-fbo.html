@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario FBO</title>
+<style>
+:root{--bg:#f8f7f4;--surface:#fff;--border:#e2e0d8;--border2:#c8c5bc;--text:#1a1a18;--text2:#6b6b65;--text3:#9b9b93;--green:#3B6D11;--gbg:#EAF3DE;--amber:#854F0B;--abg:#FAEEDA;--red:#A32D2D;--rbg:#FCEBEB;--blue:#0C447C;--bbg:#E6F1FB;--purple:#3C3489;--pbg:#EEEDFE;--teal:#085041;--tbg:#E1F5EE;--pink:#72243E;--pinkbg:#FBEAF0;--r:10px;--rs:6px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);min-height:100vh}
+.hidden{display:none!important}
+#pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:18px;padding:2rem}
+.pin-logo{width:56px;height:56px;background:var(--text);border-radius:14px;display:flex;align-items:center;justify-content:center}
+.pin-logo svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
+.pin-title{font-size:20px;font-weight:700;text-align:center}.pin-sub{font-size:13px;color:var(--text2);text-align:center}
+.pin-dots{display:flex;gap:14px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:transparent;transition:background .12s,border-color .12s}
+.dot.filled{background:var(--text);border-color:var(--text)}
+.numpad{display:grid;grid-template-columns:repeat(3,72px);gap:10px}
+.nk{width:72px;height:72px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:20px;font-weight:500;color:var(--text);cursor:pointer;transition:background .1s}
+.nk:hover{background:var(--bg)}.nk:active{transform:scale(.95)}.nk-sm{font-size:13px}
+.pin-err{color:var(--red);font-size:13px}
+.pin-hint{font-size:11px;color:var(--text3);text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:8px 16px;line-height:1.8}
+#main-screen{max-width:800px;margin:0 auto;padding:1.5rem 1rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.hdr h1{font-size:18px;font-weight:700}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:3px}
+.ba{background:var(--pbg);color:var(--purple)}.bo{background:var(--tbg);color:var(--teal)}.bc{background:var(--bbg);color:var(--blue)}
+.btn{padding:8px 14px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);font-size:13px;font-weight:500;cursor:pointer;color:var(--text);transition:background .1s}
+.btn:hover{background:var(--bg)}.btn-p{background:var(--text);color:#fff;border-color:var(--text)}.btn-p:hover{opacity:.88}
+.btn-d{color:var(--red);border-color:#F7C1C1}.btn-d:hover{background:var(--rbg)}.btn-sm{padding:5px 10px;font-size:12px}
+.alert-box{background:var(--rbg);border:1px solid #F7C1C1;border-radius:var(--rs);padding:10px 14px;margin-bottom:.7rem;font-size:13px;color:#501313}
+.warn-box{background:var(--abg);border:1px solid #FAC775;border-radius:var(--rs);padding:10px 14px;margin-bottom:.7rem;font-size:13px;color:#412402}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:1.25rem;overflow-x:auto}
+.tab{padding:9px 14px;font-size:13px;border:none;background:transparent;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500;white-space:nowrap}
+.tab.active{color:var(--text);border-bottom-color:var(--text)}.tab:hover{color:var(--text)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:1.25rem}
+.met{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
+.met-l{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.met-v{font-size:22px;font-weight:700}.met-v.warn{color:var(--red)}
+.tbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.sec{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 12px;color:var(--text2);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);background:var(--bg)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.cp{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.cBEB{background:var(--bbg);color:var(--blue)}.cALI{background:var(--gbg);color:var(--green)}
+.cLIM{background:var(--abg);color:var(--amber)}.cBAN{background:var(--pinkbg);color:var(--pink)}
+.sbar{display:flex;align-items:center;gap:8px}
+.sbg{flex:1;height:6px;border-radius:3px;background:var(--border);min-width:50px}
+.sf{height:6px;border-radius:3px;transition:width .3s}
+.sok{background:#639922}.slow{background:#BA7517}.scrit{background:var(--red)}
+.qlbl{font-size:12px;color:var(--text2);min-width:36px;text-align:right;font-weight:700}
+.fbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.fbar select,select.filt{padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--text);cursor:pointer}
+.fr{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.fr label{font-size:12px;font-weight:700;color:var(--text2)}
+.fr input,.fr select{width:100%;padding:9px 11px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);font-size:13px;color:var(--text);outline:none}
+.fr input:focus,.fr select:focus{border-color:var(--text)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem}
+.modal{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:1.5rem;width:400px;max-width:100%;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:1.25rem}
+.mact{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem}
+.log-it{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.log-it:last-child{border-bottom:none}
+.ldot{width:10px;height:10px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.lin{background:#639922}.lout{background:var(--red)}.ladj{background:#BA7517}
+.lmeta{color:var(--text2);font-size:11px;margin-top:2px}
+.lnote{font-size:11px;color:var(--text2);margin-top:3px;font-style:italic}
+.row-acts{display:flex;gap:6px}
+.obs-hi{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E}
+@media(max-width:480px){.numpad{grid-template-columns:repeat(3,64px);gap:8px}.nk{width:64px;height:64px}.fgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="pin-screen">
+  <div class="pin-logo"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+  <div><p class="pin-title">Inventario FBO</p><p class="pin-sub">Ingresa tu PIN de acceso</p></div>
+  <div class="pin-dots"><div class="dot" id="d0"></div><div class="dot" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div></div>
+  <div class="numpad">
+    <button class="nk" onclick="pk('1')">1</button><button class="nk" onclick="pk('2')">2</button><button class="nk" onclick="pk('3')">3</button>
+    <button class="nk" onclick="pk('4')">4</button><button class="nk" onclick="pk('5')">5</button><button class="nk" onclick="pk('6')">6</button>
+    <button class="nk" onclick="pk('7')">7</button><button class="nk" onclick="pk('8')">8</button><button class="nk" onclick="pk('9')">9</button>
+    <button class="nk nk-sm" onclick="pk('clr')">Borrar</button><button class="nk" onclick="pk('0')">0</button><button class="nk nk-sm" onclick="pk('ok')">OK</button>
+  </div>
+  <p class="pin-err hidden" id="pin-err">PIN incorrecto.</p>
+  <div class="pin-hint">
+    <strong>Admin:</strong> 1111 &nbsp;·&nbsp; <strong>Compras (Andrea):</strong> 1011<br>
+    <strong>Operador 1:</strong> 1112 &nbsp;·&nbsp; <strong>Operador 2:</strong> 1213 &nbsp;·&nbsp; <strong>Operador 3:</strong> 1314 &nbsp;·&nbsp; <strong>Operador 4:</strong> 1415
+  </div>
+</div>
+
+<div id="main-screen" class="hidden">
+  <div class="hdr">
+    <div><h1>Inventario FBO</h1><span class="badge" id="rbdg"></span></div>
+    <button class="btn" onclick="lo()">&#x2192; Salir</button>
+  </div>
+  <div id="alerts"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="st('inv',this)">Inventario</button>
+    <button class="tab" onclick="st('mov',this)">Movimientos</button>
+    <button class="tab ao hidden" onclick="st('rep',this)">Reportes</button>
+    <button class="tab ao hidden" onclick="st('prov',this)">Proveedores</button>
+  </div>
+
+  <div id="t-inv">
+    <div class="metrics" id="mets"></div>
+    <div class="tbar">
+      <span class="sec">Artículos</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select class="filt" id="fcat" onchange="ri()">
+          <option value="">Todas las categorías</option>
+          <option value="BEB">Bebidas</option><option value="ALI">Alimentos</option>
+          <option value="LIM">Limpieza</option><option value="BAN">Baños</option>
+        </select>
+        <select class="filt" id="fsub" onchange="ri()"><option value="">Todas las subcategorías</option></select>
+        <button class="btn ao" onclick="openAdd()">+ Agregar</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Artículo</th><th>Categoría</th><th>Stock actual (pzas)</th><th>Proveedor</th><th class="ao"></th></tr></thead>
+        <tbody id="inv-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="t-mov" class="hidden">
+    <div class="tbar">
+      <span class="sec">Movimientos</span>
+      <button class="btn btn-p" onclick="openMove()">+ Registrar movimiento</button>
+    </div>
+    <div class="fbar">
+      <select id="lcat" onchange="rl()"><option value="">Todas</option><option value="BEB">Bebidas</option><option value="ALI">Alimentos</option><option value="LIM">Limpieza</option><option value="BAN">Baños</option></select>
+      <select id="ltype" onchange="rl()"><option value="">Todos</option><option value="entrada">Entradas</option><option value="salida">Salidas</option><option value="ajuste">Ajustes</option></select>
+    </div>
+    <div class="tbl-wrap" id="log-list"></div>
+  </div>
+
+  <div id="t-rep" class="hidden">
+    <div class="metrics" id="rep-mets"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="tbl-wrap" style="padding:14px"><p class="sec" style="margin-bottom:10px">Top salidas</p><div id="rep-top"></div></div>
+      <div class="tbl-wrap" style="padding:14px"><p class="sec" style="margin-bottom:10px">Stock crítico</p><div id="rep-crit"></div></div>
+    </div>
+    <div class="tbl-wrap" style="padding:14px"><p class="sec" style="margin-bottom:10px">Detección de irregularidades</p><div id="rep-disc"></div></div>
+  </div>
+
+  <div id="t-prov" class="hidden">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Proveedor</th><th>Categoría</th><th>Cómo se pide</th><th>Frecuencia</th><th>Lead time</th><th>Contacto</th></tr></thead>
+        <tbody id="prov-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+
+<script>
+const USERS={
+  '1111':{role:'admin',  label:'Administrador',        badge:'ba'},
+  '1011':{role:'compras',label:'Compras — Andrea',     badge:'bc'},
+  '1112':{role:'op',     label:'Operador/Intendencia 1',badge:'bo'},
+  '1213':{role:'op',     label:'Operador/Intendencia 2',badge:'bo'},
+  '1314':{role:'op',     label:'Operador/Intendencia 3',badge:'bo'},
+  '1415':{role:'op',     label:'Operador/Intendencia 4',badge:'bo'},
+};
+let role=null,userLabel='',pinBuf='',nid=200;
+
+const PROVS=[
+  {n:'SAGA QUIMICO',c:'Limpieza química',o:'WhatsApp',f:'Mensual',l:'1-2 días',ct:'Maximiliano Vizcarraga 33 2231 4956'},
+  {n:'SAMS / WALMART / COSTCO',c:'Alimentos, bebidas, insumos generales',o:'Presencial y en línea',f:'2-3 semanas',l:'1 día',ct:'Guadalupe Loza + apoyo rampa/seguridad'},
+  {n:'ULINE',c:'Consumibles, limpieza',o:'Correo y tienda en línea',f:'Cuando se requiere',l:'1-2 días',ct:'servicioaclientes@uline.com'},
+  {n:'CENTRAL PACIFIC',c:'Limpieza / almacén',o:'Correo y WhatsApp',f:'Cuando se requiere',l:'1-8 días',ct:'Ana Quiroga 3334961432 · a.quiroga@cpacificpaper.com'},
+  {n:'OFFICE GO',c:'Papelería',o:'Correo y WhatsApp',f:'Mensual',l:'1-2 días',ct:'Inés Gómez 33 1479 8308'},
+  {n:'DAVID',c:'Agua, hielo, café, kumbucha, barras',o:'—',f:'Cuando se requiere',l:'—',ct:'—'},
+  {n:'MERCADO LIBRE / AMAZON',c:'Consumibles varios',o:'Tienda en línea',f:'Cuando se requiere',l:'1-15 días',ct:'—'},
+];
+
+// Catálogo completo real del FBO
+const items=[
+  // BEBIDAS - REFRESCOS
+  {id:1,n:'Coca Cola Mini',sub:'Refrescos',c:'BEB',u:'PAQUETE (24pz)',s:384,mn:6,mx:35,pp:24,p:'SAMS',obs:'MUY SOLICITADA'},
+  {id:2,n:'Coca Cola Light Mini',sub:'Refrescos',c:'BEB',u:'PAQUETE (8pz)',s:120,mn:6,mx:35,pp:8,p:'WALMART',obs:'MUY SOLICITADA'},
+  {id:3,n:'Coca Cola Zero Mini',sub:'Refrescos',c:'BEB',u:'PAQUETE (24pz)',s:72,mn:6,mx:25,pp:24,p:'SAMS',obs:'Casi no la consumen'},
+  {id:4,n:'Surtido Sabores Mini',sub:'Refrescos',c:'BEB',u:'PAQUETE (24pz)',s:144,mn:6,mx:35,pp:24,p:'SAMS',obs:''},
+  {id:5,n:'7UP',sub:'Refrescos',c:'BEB',u:'PAQUETE (12pz)',s:12,mn:3,mx:15,pp:12,p:'WALMART',obs:'Consumo preferencial Delmark'},
+  {id:6,n:'7UP Light',sub:'Refrescos',c:'BEB',u:'PAQUETE (6pz)',s:0,mn:3,mx:15,pp:6,p:'WALMART',obs:'Consumo preferencial Delmark'},
+  {id:7,n:'7UP Citrus',sub:'Refrescos',c:'BEB',u:'PAQUETE (12pz)',s:12,mn:3,mx:15,pp:12,p:'WALMART',obs:'Consumo preferencial Delmark'},
+  {id:8,n:'Canada Dry',sub:'Refrescos',c:'BEB',u:'PAQUETE (6pz)',s:12,mn:3,mx:15,pp:6,p:'SAMS/COSTCO',obs:'Consumo preferencial Delmark'},
+  {id:9,n:'Canada Dry Light',sub:'Refrescos',c:'BEB',u:'PAQUETE (6pz)',s:0,mn:3,mx:15,pp:6,p:'SAMS/COSTCO',obs:'Consumo preferencial Delmark'},
+  {id:10,n:'Squirt',sub:'Refrescos',c:'BEB',u:'PAQUETE (6pz)',s:0,mn:3,mx:15,pp:6,p:'WALMART',obs:''},
+  {id:11,n:'Squirt Light',sub:'Refrescos',c:'BEB',u:'PAQUETE (6pz)',s:0,mn:3,mx:15,pp:6,p:'WALMART',obs:''},
+  // BEBIDAS - OTROS
+  {id:12,n:'Kumbuchitas',sub:'Kumbucha',c:'BEB',u:'PAQUETE (6pz)',s:10,mn:6,mx:35,pp:6,p:'DAVID',obs:'MUY SOLICITADA'},
+  {id:13,n:'Té Lipton Negro Limón',sub:'Tés',c:'BEB',u:'PAQUETE (6pz)',s:4,mn:3,mx:15,pp:6,p:'SAMS/WALMART',obs:'Consumo preferencial Delmark'},
+  {id:14,n:'Té Lipton Verde Limón',sub:'Tés',c:'BEB',u:'PAQUETE (6pz)',s:4,mn:3,mx:15,pp:6,p:'SAMS/WALMART',obs:'Consumo preferencial Delmark'},
+  {id:15,n:'Fuze Tea Mango/Manzanilla',sub:'Tés',c:'BEB',u:'PAQUETE (6pz)',s:0,mn:3,mx:15,pp:6,p:'SAMS/WALMART',obs:'Consumo preferencial Delmark'},
+  {id:16,n:'Agua Natural Universal FBO',sub:'Agua natural',c:'BEB',u:'PAQUETE (24pz)',s:1056,mn:15,mx:60,pp:24,p:'DAVID',obs:''},
+  {id:17,n:'Garci Crespo',sub:'Agua mineral',c:'BEB',u:'PAQUETE (24pz)',s:216,mn:6,mx:35,pp:24,p:'SAMS',obs:''},
+  {id:18,n:'San Pellegrino',sub:'Agua mineral',c:'BEB',u:'PAQUETE (20pz)',s:240,mn:6,mx:35,pp:20,p:'SAMS',obs:''},
+  {id:19,n:'Peñafiel Natural',sub:'Agua mineral',c:'BEB',u:'PAQUETE (24pz)',s:24,mn:6,mx:35,pp:24,p:'SAMS',obs:''},
+  {id:20,n:'Agua Perrier',sub:'Agua mineral',c:'BEB',u:'PAQUETE (12pz)',s:96,mn:6,mx:35,pp:12,p:'SAMS',obs:''},
+  {id:21,n:'Jumex',sub:'Jugos',c:'BEB',u:'PAQUETE (24pz)',s:264,mn:6,mx:35,pp:24,p:'SAMS',obs:''},
+  {id:22,n:'Boing',sub:'Jugos',c:'BEB',u:'PAQUETE (24pz)',s:144,mn:6,mx:35,pp:24,p:'SAMS',obs:'MUY SOLICITADA'},
+  {id:23,n:'Leche Entera',sub:'Lácteos',c:'BEB',u:'PAQUETE (12pz)',s:12,mn:2,mx:6,pp:12,p:'SAMS',obs:'Revisar caducidad'},
+  {id:24,n:'Leche Deslactosada',sub:'Lácteos',c:'BEB',u:'PAQUETE (12pz)',s:12,mn:2,mx:6,pp:12,p:'SAMS',obs:'Revisar caducidad'},
+  {id:25,n:'Leche Carnation',sub:'Lácteos',c:'BEB',u:'PAQUETE (4pz)',s:4,mn:3,mx:10,pp:4,p:'SAMS',obs:''},
+  {id:26,n:'Red Bull',sub:'Energizantes',c:'BEB',u:'PAQUETE (4pz)',s:28,mn:6,mx:50,pp:4,p:'WALMART/COSTCO',obs:'MUY SOLICITADA'},
+  {id:27,n:'Electrolit',sub:'Sueros',c:'BEB',u:'PAQUETE (6pz)',s:0,mn:4,mx:35,pp:6,p:'SAMS/WALMART',obs:'MUY SOLICITADA'},
+  // ALIMENTOS
+  {id:28,n:'Pekepakes',sub:'Galletas',c:'ALI',u:'CAJA (40pz)',s:680,mn:8,mx:35,pp:40,p:'SAMS',obs:''},
+  {id:29,n:'Oreo',sub:'Galletas',c:'ALI',u:'CAJA (30pz)',s:390,mn:8,mx:35,pp:30,p:'SAMS',obs:''},
+  {id:30,n:'Canelitas',sub:'Galletas',c:'ALI',u:'CAJA (19pz)',s:133,mn:8,mx:35,pp:19,p:'SAMS',obs:'MUY SOLICITADA'},
+  {id:31,n:'Coco',sub:'Galletas',c:'ALI',u:'CAJA (8pz)',s:0,mn:8,mx:35,pp:8,p:'SAMS',obs:'Aún no se han comprado'},
+  {id:32,n:'Blueberry con Chía',sub:'Galletas',c:'ALI',u:'CAJA (7pz)',s:49,mn:5,mx:35,pp:7,p:'SAMS',obs:'MUY SOLICITADA'},
+  {id:33,n:'Barra Proteína',sub:'Barras',c:'ALI',u:'—',s:0,mn:3,mx:35,pp:1,p:'DAVID',obs:'Pendiente a confirmar'},
+  {id:34,n:'Crunchy',sub:'Barras',c:'ALI',u:'CAJA (52pz)',s:468,mn:3,mx:35,pp:52,p:'SAMS',obs:''},
+  {id:35,n:'NV Chocopean',sub:'Barras',c:'ALI',u:'CAJA (30pz)',s:168,mn:3,mx:35,pp:30,p:'SAMS',obs:''},
+  {id:36,n:'Alfajores',sub:'Barras',c:'ALI',u:'—',s:0,mn:5,mx:35,pp:1,p:'DAVID',obs:'MUY SOLICITADA — Pendiente a confirmar'},
+  {id:37,n:"Hershey's Mini",sub:'Dulces',c:'ALI',u:'BOLSA 900gr',s:12,mn:4,mx:15,pp:1,p:'SAMS',obs:''},
+  {id:38,n:'Pastillas de Menta',sub:'Dulces',c:'ALI',u:'BOLSA 1.3kg',s:3,mn:4,mx:15,pp:1,p:'SAMS',obs:''},
+  {id:39,n:'Dulce Chicloso',sub:'Dulces',c:'ALI',u:'BOLSA 250gr',s:0,mn:4,mx:15,pp:1,p:'SAMS',obs:''},
+  {id:40,n:'Dulce de Menta',sub:'Dulces',c:'ALI',u:'BOLSA 1.7kg',s:0,mn:4,mx:15,pp:1,p:'SAMS',obs:''},
+  {id:41,n:'Papas Surtido Grande',sub:'Papas',c:'ALI',u:'CAJA (30pz)',s:0,mn:5,mx:35,pp:30,p:'SAMS',obs:''},
+  {id:42,n:'Papas Surtido Mini',sub:'Papas',c:'ALI',u:'CAJA (50pz)',s:550,mn:5,mx:35,pp:50,p:'SAMS',obs:'MUY SOLICITADA'},
+  {id:43,n:'Mix Barcel',sub:'Papas',c:'ALI',u:'CAJA (27pz)',s:0,mn:4,mx:20,pp:27,p:'SAMS',obs:'Recién agregado'},
+  {id:44,n:'Azúcar',sub:'Cafetería',c:'ALI',u:'CAJA (1000 sobres)',s:0,mn:3,mx:8,pp:1000,p:'SAMS',obs:'Pendiente a confirmar'},
+  {id:45,n:'Stevia',sub:'Cafetería',c:'ALI',u:'CAJA (400 sobres)',s:0,mn:3,mx:8,pp:400,p:'SAMS',obs:'Pendiente a confirmar'},
+  {id:46,n:'Splenda',sub:'Cafetería',c:'ALI',u:'CAJA (600 sobres)',s:0,mn:3,mx:8,pp:600,p:'SAMS',obs:'Pendiente a confirmar'},
+  {id:47,n:'Tés cafetería',sub:'Cafetería',c:'ALI',u:'Sobres',s:80,mn:4,mx:15,pp:1,p:'SAMS',obs:''},
+  {id:48,n:'Agitadores',sub:'Cafetería',c:'ALI',u:'Piezas',s:240,mn:5,mx:30,pp:1,p:'WALMART',obs:'Se planea cambiar a madera tipo Starbucks'},
+  {id:49,n:'Servilletas',sub:'Cafetería',c:'ALI',u:'PAQUETE (400pz)',s:1200,mn:3,mx:20,pp:400,p:'SAMS',obs:'Dura entre 1 y 1.5 semanas'},
+  {id:50,n:'Vasos personalizados',sub:'Cafetería',c:'ALI',u:'Paquete (50pz)',s:0,mn:5,mx:60,pp:50,p:'—',obs:'Pendiente a confirmar'},
+  {id:51,n:'Tapas',sub:'Cafetería',c:'ALI',u:'Piezas',s:0,mn:5,mx:60,pp:1,p:'—',obs:'Pendiente a confirmar'},
+  {id:52,n:'Coffee Mate',sub:'Cafetería',c:'ALI',u:'CAJA (200pz)',s:0,mn:3,mx:8,pp:200,p:'SAMS',obs:'Pendiente a confirmar'},
+  {id:53,n:'Café Cumbre Gourmet',sub:'Cafetería',c:'ALI',u:'—',s:0,mn:1,mx:5,pp:1,p:'DAVID',obs:'Pendiente a confirmar'},
+  // BAÑOS
+  {id:54,n:'Tapetes Mingitorios',sub:'Baños',c:'BAN',u:'CAJA (6pz)',s:0,mn:1,mx:4,pp:6,p:'ULINE',obs:'Semanal'},
+  {id:55,n:'Harpic',sub:'Baños',c:'BAN',u:'PAQUETE (3pz)',s:0,mn:5,mx:10,pp:3,p:'SAMS',obs:'Semanal'},
+  {id:56,n:'Cepillo para Baño',sub:'Baños',c:'BAN',u:'Piezas',s:0,mn:10,mx:15,pp:1,p:'WALMART',obs:'Mensual'},
+  {id:57,n:'Bote de Basura',sub:'Baños',c:'BAN',u:'Piezas',s:0,mn:3,mx:5,pp:1,p:'WALMART/SAMS',obs:''},
+  {id:58,n:'Jabón para Manos',sub:'Químicos baño',c:'BAN',u:'BIDÓN 20lt',s:0,mn:1,mx:4,pp:1,p:'SAGA QUIMICO',obs:'Mensual'},
+  {id:59,n:'Cloro',sub:'Químicos baño',c:'BAN',u:'BIDÓN 20lt',s:0,mn:1,mx:4,pp:1,p:'SAGA QUIMICO',obs:'Mensual'},
+  {id:60,n:'Pinol',sub:'Químicos baño',c:'BAN',u:'BIDÓN 20lt',s:0,mn:1,mx:4,pp:1,p:'SAGA QUIMICO',obs:'Mensual'},
+  {id:61,n:'Fabuloso',sub:'Químicos baño',c:'BAN',u:'BIDÓN 20lt',s:0,mn:1,mx:4,pp:1,p:'SAGA QUIMICO',obs:'Mensual'},
+  {id:62,n:'Quita Olor',sub:'Químicos baño',c:'BAN',u:'BIDÓN 20lt',s:0,mn:1,mx:4,pp:1,p:'SAGA QUIMICO',obs:'Mensual'},
+  {id:63,n:'Papel de Baño Jumbo',sub:'Papel',c:'BAN',u:'CAJA (12pz)',s:0,mn:1,mx:5,pp:12,p:'ULINE',obs:'Semanal'},
+  {id:64,n:'Papel de Baño Cottonete',sub:'Papel',c:'BAN',u:'PAQUETE (40pz)',s:0,mn:1,mx:5,pp:40,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:65,n:'Rollo para Manos',sub:'Papel',c:'BAN',u:'CAJA (6pz)',s:0,mn:1,mx:5,pp:6,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:66,n:'Toallas Sanitas',sub:'Higiene femenina',c:'BAN',u:'CAJA (20pz)',s:0,mn:1,mx:5,pp:20,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:67,n:'Toallas Saba Nocturnas',sub:'Higiene femenina',c:'BAN',u:'PAQUETE (28pz)',s:0,mn:1,mx:5,pp:28,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:68,n:'Toallas Saba Día',sub:'Higiene femenina',c:'BAN',u:'PAQUETE (28pz)',s:0,mn:1,mx:5,pp:28,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:69,n:'Toallas Saba Protectores',sub:'Higiene femenina',c:'BAN',u:'PAQUETE (50pz)',s:0,mn:1,mx:5,pp:50,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:70,n:'Tampax',sub:'Higiene femenina',c:'BAN',u:'PAQUETE (10pz)',s:0,mn:1,mx:5,pp:10,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:71,n:'Toallas Húmedas',sub:'Higiene femenina',c:'BAN',u:'CAJA (6pz)',s:0,mn:1,mx:5,pp:6,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:72,n:'Kleenex Pañuelos',sub:'Papel',c:'BAN',u:'Paquete',s:0,mn:1,mx:5,pp:1,p:'WALMART/SAMS',obs:'Semanal'},
+  {id:73,n:'Kleenex Rollo Manos',sub:'Papel',c:'BAN',u:'CAJA (6pz)',s:0,mn:1,mx:5,pp:6,p:'ULINE',obs:'Semanal'},
+  // LIMPIEZA
+  {id:74,n:'Líquido para Mopear',sub:'Químicos',c:'LIM',u:'BOTELLA 9-10lt',s:0,mn:1,mx:4,pp:1,p:'ULINE',obs:'Mensual'},
+  {id:75,n:'Desengrasante',sub:'Químicos',c:'LIM',u:'BIDÓN 20lt',s:0,mn:1,mx:4,pp:1,p:'SAGA QUIMICO',obs:'Mensual'},
+  {id:76,n:'All Mo All para Llantas',sub:'Químicos',c:'LIM',u:'BIDÓN 20lt',s:0,mn:1,mx:4,pp:1,p:'SAGA QUIMICO',obs:'Mensual'},
+  {id:77,n:'Trapos',sub:'Equipo',c:'LIM',u:'Paquete/individual',s:0,mn:1,mx:4,pp:1,p:'ULINE/WALMART',obs:'Semanal'},
+  {id:78,n:'Trapeador',sub:'Equipo',c:'LIM',u:'Piezas',s:0,mn:2,mx:8,pp:1,p:'WALMART/SAMS',obs:'Mensual'},
+  {id:79,n:'Escoba',sub:'Equipo',c:'LIM',u:'Piezas',s:0,mn:2,mx:8,pp:1,p:'WALMART/SAMS',obs:'Mensual'},
+  {id:80,n:'Recogedor',sub:'Equipo',c:'LIM',u:'Piezas',s:0,mn:2,mx:8,pp:1,p:'WALMART/SAMS',obs:'Mensual'},
+  {id:81,n:'Mopeador',sub:'Equipo',c:'LIM',u:'Piezas',s:0,mn:2,mx:8,pp:1,p:'—',obs:'Mensual'},
+  {id:82,n:'Escoba Uso Rudo',sub:'Equipo',c:'LIM',u:'Piezas',s:0,mn:2,mx:5,pp:1,p:'ULINE',obs:'Mensual/Anual'},
+];
+
+const log=[];
+
+// PIN
+function pk(k){
+  const er=document.getElementById('pin-err');er.classList.add('hidden');
+  if(k==='clr'){pinBuf=pinBuf.slice(0,-1);}
+  else if(k==='ok'){
+    if(USERS[pinBuf]){
+      const u=USERS[pinBuf];role=u.role;userLabel=u.label;pinBuf='';ud();
+      document.getElementById('pin-screen').classList.add('hidden');
+      document.getElementById('main-screen').classList.remove('hidden');
+      const rb=document.getElementById('rbdg');
+      rb.textContent=u.label;rb.className='badge '+u.badge;
+      document.querySelectorAll('.ao').forEach(e=>{
+        (role==='admin'||role==='compras')?e.classList.remove('hidden'):e.classList.add('hidden');
+      });
+      rprov();ra();
+    } else {er.classList.remove('hidden');pinBuf='';ud();  }
+    return;
+  } else if(pinBuf.length<4) pinBuf+=k;
+  ud();
+}
+function ud(){for(let i=0;i<4;i++){const d=document.getElementById('d'+i);i<pinBuf.length?d.classList.add('filled'):d.classList.remove('filled');}}
+function lo(){role=null;pinBuf='';document.getElementById('main-screen').classList.add('hidden');document.getElementById('pin-screen').classList.remove('hidden');document.getElementById('pin-err').classList.add('hidden');ud();}
+
+function st(id,el){
+  ['inv','mov','rep','prov'].forEach(t=>document.getElementById('t-'+t).classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('t-'+id).classList.remove('hidden');el.classList.add('active');
+  if(id==='rep')rr();
+}
+
+function cl(c){return c==='BEB'?'cBEB':c==='ALI'?'cALI':c==='LIM'?'cLIM':'cBAN';}
+function cn(c){return c==='BEB'?'Bebidas':c==='ALI'?'Alimentos':c==='LIM'?'Limpieza':'Baños';}
+function minS(it){return it.mn*it.pp;}
+function scl(it){if(it.s<=0||it.s<minS(it))return 'scrit';if(it.s<minS(it)*1.4)return 'slow';return 'sok';}
+function spct(it){return Math.min(100,Math.round((it.s/Math.max(it.mx*it.pp,1))*100));}
+function nowS(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function uL(){return userLabel;}
+function isPend(it){return it.obs&&it.obs.includes('Pendiente');}
+
+function ra(){ralerts();rmets();ri();rl();}
+function ralerts(){
+  const crit=items.filter(i=>i.s<minS(i)&&!isPend(i));
+  const pend=items.filter(i=>isPend(i));
+  let h='';
+  if(crit.length) h+=`<div class="alert-box">&#x26A0; <strong>Stock crítico (${crit.length}):</strong> ${crit.slice(0,7).map(i=>i.n).join(', ')}${crit.length>7?'…':''}</div>`;
+  if(pend.length&&role!=='op') h+=`<div class="warn-box">&#x1F4CB; <strong>${pend.length} artículos pendientes a confirmar</strong> — se recomienda completar el conteo físico con Guadalupe Loza.</div>`;
+  document.getElementById('alerts').innerHTML=h;
+}
+function rmets(){
+  const crit=items.filter(i=>i.s<minS(i)&&!isPend(i)).length;
+  const pend=items.filter(i=>isPend(i)).length;
+  document.getElementById('mets').innerHTML=`
+    <div class="met"><div class="met-l">Total artículos</div><div class="met-v">${items.length}</div></div>
+    <div class="met"><div class="met-l">Stock crítico</div><div class="met-v ${crit?'warn':''}">${crit}</div></div>
+    <div class="met"><div class="met-l">Movimientos</div><div class="met-v">${log.length}</div></div>
+    <div class="met ao ${role==='op'?'hidden':''}"><div class="met-l">Pendientes</div><div class="met-v ${pend?'warn':''}">${pend}</div></div>`;
+}
+function ri(){
+  const fc=document.getElementById('fcat').value;
+  const fsub=document.getElementById('fsub');
+  const curSub=fsub.value;
+  const subs=[...new Set(items.filter(i=>!fc||i.c===fc).map(i=>i.sub))].sort();
+  fsub.innerHTML='<option value="">Todas las subcategorías</option>'+subs.map(s=>`<option ${s===curSub?'selected':''}>${s}</option>`).join('');
+  const fsubv=fsub.value;
+  const fil=items.filter(i=>(!fc||i.c===fc)&&(!fsubv||i.sub===fsubv));
+  const adm=role==='admin';
+  document.getElementById('inv-body').innerHTML=fil.map(it=>{
+    const sc=scl(it),p=spct(it);
+    const pend=isPend(it);
+    const sd=pend?`<span style="font-size:11px;color:var(--text3);font-style:italic">Pendiente de confirmar</span>`
+      :`<div class="sbar"><div class="sbg"><div class="sf ${sc}" style="width:${p}%"></div></div><span class="qlbl">${it.s.toLocaleString()}</span></div><br><span style="font-size:10px;color:var(--text3)">mín ${minS(it).toLocaleString()} pzas &nbsp;·&nbsp; ${it.u}</span>`;
+    const hi=it.obs&&it.obs.includes('MUY')?`<span class="obs-hi">★ Muy solicitada</span> `:'';
+    const abtns=adm?`<td><div class="row-acts"><button class="btn btn-sm" onclick="openEdit(${it.id})">Editar</button><button class="btn btn-sm btn-d" onclick="delIt(${it.id})">&#x1F5D1;</button></div></td>`:'';
+    return `<tr><td>${hi}<strong>${it.n}</strong><br><span style="font-size:11px;color:var(--text2)">${it.sub}</span></td>
+      <td><span class="cp ${cl(it.c)}">${cn(it.c)}</span></td>
+      <td>${sd}</td>
+      <td style="font-size:12px;color:var(--text2)">${it.p}</td>${abtns}</tr>`;
+  }).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:24px">Sin artículos</td></tr>`;
+}
+function rl(){
+  const cf=document.getElementById('lcat').value,tf=document.getElementById('ltype').value;
+  const fil=[...log].reverse().filter(l=>(!cf||l.c===cf)&&(!tf||l.type===tf));
+  document.getElementById('log-list').innerHTML=fil.length?fil.map(l=>{
+    const dc=l.type==='entrada'?'lin':l.type==='salida'?'lout':'ladj';
+    const sg=l.type==='entrada'?'+':l.type==='salida'?'−':'±';
+    const vc=l.type==='entrada'?'#3B6D11':l.type==='salida'?'#A32D2D':'#854F0B';
+    return `<div class="log-it"><div class="ldot ${dc}"></div><div style="flex:1">
+      <div style="display:flex;justify-content:space-between"><strong>${l.n}</strong><span style="font-weight:700;color:${vc}">${sg}${Math.abs(l.q)} pzas</span></div>
+      <div class="lmeta"><span class="cp ${cl(l.c)}" style="font-size:10px">${cn(l.c)}</span> · ${l.type} · ${l.u} · ${l.d}</div>
+      ${l.note?`<div class="lnote">${l.note}</div>`:''}
+    </div></div>`;
+  }).join(''):`<div style="padding:24px;text-align:center;color:var(--text2);font-size:13px">Sin movimientos registrados.</div>`;
+}
+function rr(){
+  const sal=log.filter(l=>l.type==='salida');
+  const cnt={};sal.forEach(l=>{cnt[l.n]=(cnt[l.n]||0)+l.q;});
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const te=log.filter(l=>l.type==='entrada').reduce((a,l)=>a+l.q,0);
+  const ts=sal.reduce((a,l)=>a+l.q,0);
+  const adj=log.filter(l=>l.type==='ajuste').length;
+  const crit=items.filter(i=>i.s<minS(i)&&!isPend(i));
+  const mx=Math.max(...Object.values(cnt),1);
+  document.getElementById('rep-mets').innerHTML=`
+    <div class="met"><div class="met-l">Total entradas</div><div class="met-v">${te.toLocaleString()}</div></div>
+    <div class="met"><div class="met-l">Total salidas</div><div class="met-v">${ts.toLocaleString()}</div></div>
+    <div class="met"><div class="met-l">Ajustes</div><div class="met-v ${adj>3?'warn':''}">${adj}</div></div>
+    <div class="met"><div class="met-l">Críticos</div><div class="met-v ${crit.length?'warn':''}">${crit.length}</div></div>`;
+  document.getElementById('rep-top').innerHTML=top.length?top.map(([n,q])=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="flex:1">${n}</span>
+      <div class="sbg" style="width:80px"><div class="sf scrit" style="width:${Math.round((q/mx)*100)}%"></div></div>
+      <span style="min-width:28px;text-align:right;font-weight:700">${q}</span>
+    </div>`).join(''):'<p style="color:var(--text2);font-size:13px">Sin datos aún.</p>';
+  document.getElementById('rep-crit').innerHTML=crit.length?crit.slice(0,8).map(i=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span>${i.n}</span><span style="color:var(--red);font-weight:700">${i.s} / mín ${minS(i)}</span>
+    </div>`).join(''):'<p style="color:#3B6D11;font-size:13px;font-weight:700">&#x2713; Todo en orden</p>';
+  document.getElementById('rep-disc').innerHTML=`
+    <div style="background:var(--abg);border:1px solid #FAC775;border-radius:var(--rs);padding:12px 14px;font-size:13px;color:#412402;margin-bottom:10px">
+      &#x26A0; <strong>${adj} ajuste(s) manuales</strong>. Ajustes frecuentes sin justificación pueden indicar robo hormiga.<br>
+      <strong>Recomendación:</strong> conteo físico semanal con Guadalupe Loza + un segundo operador. Firmar reporte impreso.
+    </div>
+    <p style="font-size:12px;color:var(--text2);line-height:1.7"><strong>Flujo de compras:</strong> Saga Químico por WhatsApp · SAMS/Walmart presencial (Guadalupe Loza + apoyo rampa/seguridad) · Uline y Central Pacific por correo · David coordina agua, hielo, café, kumbucha y barras.</p>`;
+}
+function rprov(){
+  document.getElementById('prov-body').innerHTML=PROVS.map(p=>`<tr>
+    <td><strong>${p.n}</strong></td>
+    <td style="font-size:12px;color:var(--text2)">${p.c}</td>
+    <td style="font-size:12px">${p.o}</td>
+    <td style="font-size:12px">${p.f}</td>
+    <td style="font-size:12px">${p.l}</td>
+    <td style="font-size:12px;color:var(--text2)">${p.ct}</td>
+  </tr>`).join('');
+}
+
+function closeM(){document.getElementById('modal-root').innerHTML='';}
+function modal(h){document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeM()">${h}</div>`;}
+
+function openAdd(){
+  modal(`<div class="modal"><h2>Agregar artículo</h2>
+    <div class="fgrid">
+      <div class="fr" style="grid-column:1/-1"><label>Nombre (oficial en sistema)</label><input id="mn" placeholder="Ej. Coca Cola Mini"></div>
+      <div class="fr"><label>Categoría</label><select id="mc"><option value="BEB">Bebidas</option><option value="ALI">Alimentos</option><option value="LIM">Limpieza</option><option value="BAN">Baños</option></select></div>
+      <div class="fr"><label>Subcategoría</label><input id="msub" placeholder="Ej. Refrescos, Galletas..."></div>
+      <div class="fr"><label>Unidad de compra</label><input id="mu" placeholder="PAQUETE (24pz)..."></div>
+      <div class="fr"><label>Piezas por paquete</label><input id="mpp" type="number" value="1" min="1"></div>
+      <div class="fr"><label>Stock actual (pzas)</label><input id="mq" type="number" value="0" min="0"></div>
+      <div class="fr"><label>Mínimo (paquetes)</label><input id="mmin" type="number" value="3" min="1"></div>
+      <div class="fr"><label>Máximo (paquetes)</label><input id="mmax" type="number" value="20" min="1"></div>
+      <div class="fr" style="grid-column:1/-1"><label>Proveedor</label><input id="mprov" placeholder="SAMS, SAGA QUIMICO..."></div>
+      <div class="fr" style="grid-column:1/-1"><label>Observaciones</label><input id="mobs" placeholder="Notas adicionales"></div>
+    </div>
+    <div class="mact"><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="svAdd()">Guardar</button></div>
+  </div>`);
+}
+function svAdd(){
+  const n=document.getElementById('mn').value.trim();if(!n){alert('El nombre es obligatorio.');return;}
+  items.push({id:nid++,n,sub:document.getElementById('msub').value||'General',c:document.getElementById('mc').value,
+    u:document.getElementById('mu').value||'—',pp:parseInt(document.getElementById('mpp').value)||1,
+    s:parseInt(document.getElementById('mq').value)||0,mn:parseInt(document.getElementById('mmin').value)||3,
+    mx:parseInt(document.getElementById('mmax').value)||20,p:document.getElementById('mprov').value||'—',
+    obs:document.getElementById('mobs').value||''});
+  closeM();ra();
+}
+function openEdit(id){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  modal(`<div class="modal"><h2>Editar — ${it.n}</h2>
+    <div class="fgrid">
+      <div class="fr" style="grid-column:1/-1"><label>Nombre</label><input id="en" value="${it.n}"></div>
+      <div class="fr"><label>Categoría</label><select id="ec">
+        <option value="BEB" ${it.c==='BEB'?'selected':''}>Bebidas</option>
+        <option value="ALI" ${it.c==='ALI'?'selected':''}>Alimentos</option>
+        <option value="LIM" ${it.c==='LIM'?'selected':''}>Limpieza</option>
+        <option value="BAN" ${it.c==='BAN'?'selected':''}>Baños</option>
+      </select></div>
+      <div class="fr"><label>Subcategoría</label><input id="esub" value="${it.sub}"></div>
+      <div class="fr"><label>Unidad</label><input id="eu" value="${it.u}"></div>
+      <div class="fr"><label>Pzas por paquete</label><input id="epp" type="number" value="${it.pp}"></div>
+      <div class="fr"><label>Stock actual (pzas)</label><input id="eq" type="number" value="${it.s}"></div>
+      <div class="fr"><label>Mínimo (paquetes)</label><input id="emin" type="number" value="${it.mn}"></div>
+      <div class="fr"><label>Máximo (paquetes)</label><input id="emax" type="number" value="${it.mx}"></div>
+      <div class="fr" style="grid-column:1/-1"><label>Proveedor</label><input id="eprov" value="${it.p}"></div>
+      <div class="fr" style="grid-column:1/-1"><label>Observaciones</label><input id="eobs" value="${it.obs}"></div>
+    </div>
+    <div class="mact"><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="svEdit(${id})">Guardar</button></div>
+  </div>`);
+}
+function svEdit(id){
+  const it=items.find(i=>i.id===id);
+  it.n=document.getElementById('en').value.trim()||it.n;
+  it.c=document.getElementById('ec').value;it.sub=document.getElementById('esub').value||it.sub;
+  it.u=document.getElementById('eu').value||it.u;it.pp=parseInt(document.getElementById('epp').value)||it.pp;
+  it.s=parseInt(document.getElementById('eq').value)||0;it.mn=parseInt(document.getElementById('emin').value)||1;
+  it.mx=parseInt(document.getElementById('emax').value)||1;it.p=document.getElementById('eprov').value||it.p;
+  it.obs=document.getElementById('eobs').value||'';
+  closeM();ra();
+}
+function delIt(id){if(!confirm('¿Eliminar este artículo?'))return;const idx=items.findIndex(i=>i.id===id);if(idx>-1)items.splice(idx,1);ra();}
+function openMove(){
+  const opts=items.map(i=>`<option value="${i.id}">${i.n} — ${i.s} pzas (${cn(i.c)})</option>`).join('');
+  modal(`<div class="modal"><h2>Registrar movimiento</h2>
+    <div class="fr"><label>Artículo</label><select id="vi">${opts}</select></div>
+    <div class="fr"><label>Tipo</label><select id="vt">
+      <option value="entrada">Entrada — compra o recepción</option>
+      <option value="salida">Salida — consumo, dispensador, uso</option>
+      <option value="ajuste">Ajuste — corrección por conteo físico</option>
+    </select></div>
+    <div class="fr"><label>Cantidad (piezas)</label><input id="vq" type="number" value="1" min="1"></div>
+    <div class="fr"><label>Nota obligatoria</label><input id="vn" placeholder="Ej. Reposición charola sala VIP, compra SAMS..."></div>
+    <div class="mact"><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" onclick="svMove()">Registrar</button></div>
+  </div>`);
+}
+function svMove(){
+  const iid=parseInt(document.getElementById('vi').value);
+  const it=items.find(i=>i.id===iid);
+  const type=document.getElementById('vt').value;
+  const qty=parseInt(document.getElementById('vq').value)||1;
+  const note=document.getElementById('vn').value.trim();
+  if(!note){alert('La nota es obligatoria — es clave para detectar irregularidades.');return;}
+  if(type==='entrada') it.s+=qty;
+  else if(type==='salida') it.s=Math.max(0,it.s-qty);
+  else it.s=Math.max(0,qty);
+  log.push({type,n:it.n,c:it.c,sub:it.sub,q:qty,u:uL(),d:nowS(),note});
+  closeM();ra();
+}
+</script>
+</body>
+</html>
