@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario FBO</title>
+<style>
+:root{--bg:#f8f7f4;--surface:#fff;--border:#e2e0d8;--border2:#c8c5bc;--text:#1a1a18;--text2:#6b6b65;--text3:#9b9b93;--green:#3B6D11;--gbg:#EAF3DE;--amber:#854F0B;--abg:#FAEEDA;--red:#A32D2D;--rbg:#FCEBEB;--blue:#0C447C;--bbg:#E6F1FB;--purple:#3C3489;--pbg:#EEEDFE;--teal:#085041;--tbg:#E1F5EE;--pink:#72243E;--pinkbg:#FBEAF0;--r:10px;--rs:6px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);min-height:100vh}
+.hidden{display:none!important}
+#pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:18px;padding:2rem}
+.pin-logo{width:56px;height:56px;background:var(--text);border-radius:14px;display:flex;align-items:center;justify-content:center}
+.pin-logo svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
+.pin-title{font-size:20px;font-weight:700;text-align:center}.pin-sub{font-size:13px;color:var(--text2);text-align:center}
+.pin-dots{display:flex;gap:14px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:transparent;transition:background .12s,border-color .12s}
+.dot.filled{background:var(--text);border-color:var(--text)}
+.numpad{display:grid;grid-template-columns:repeat(3,72px);gap:10px}
+.nk{width:72px;height:72px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:20px;font-weight:500;color:var(--text);cursor:pointer;transition:background .1s}
+.nk:hover{background:var(--bg)}.nk:active{transform:scale(.95)}.nk-sm{font-size:13px}
+.nk:disabled{opacity:.4;cursor:not-allowed}
+.pin-err{color:var(--red);font-size:13px}
+.conn{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:700}
+.conn-ok{background:var(--gbg);color:var(--green)}.conn-bad{background:var(--rbg);color:var(--red)}.conn-load{background:var(--abg);color:var(--amber)}
+#main-screen{max-width:820px;margin:0 auto;padding:1.5rem 1rem}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;gap:10px;flex-wrap:wrap}
+.hdr h1{font-size:18px;font-weight:700}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:3px}
+.ba{background:var(--pbg);color:var(--purple)}.bo{background:var(--tbg);color:var(--teal)}.bc{background:var(--bbg);color:var(--blue)}
+.btn{padding:8px 14px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);font-size:13px;font-weight:500;cursor:pointer;color:var(--text);transition:background .1s}
+.btn:hover{background:var(--bg)}.btn-p{background:var(--text);color:#fff;border-color:var(--text)}.btn-p:hover{opacity:.88}
+.btn-d{color:var(--red);border-color:#F7C1C1}.btn-d:hover{background:var(--rbg)}.btn-sm{padding:5px 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.alert-box{background:var(--rbg);border:1px solid #F7C1C1;border-radius:var(--rs);padding:10px 14px;margin-bottom:.7rem;font-size:13px;color:#501313}
+.warn-box{background:var(--abg);border:1px solid #FAC775;border-radius:var(--rs);padding:10px 14px;margin-bottom:.7rem;font-size:13px;color:#412402}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:1.25rem;overflow-x:auto}
+.tab{padding:9px 14px;font-size:13px;border:none;background:transparent;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500;white-space:nowrap}
+.tab.active{color:var(--text);border-bottom-color:var(--text)}.tab:hover{color:var(--text)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:1.25rem}
+.met{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
+.met-l{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.met-v{font-size:22px;font-weight:700}.met-v.warn{color:var(--red)}
+.tbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.sec{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 12px;color:var(--text2);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);background:var(--bg)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.cp{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.cBEB{background:var(--bbg);color:var(--blue)}.cALI{background:var(--gbg);color:var(--green)}
+.cLIM{background:var(--abg);color:var(--amber)}.cBAN{background:var(--pinkbg);color:var(--pink)}
+.sbar{display:flex;align-items:center;gap:8px}
+.sbg{flex:1;height:6px;border-radius:3px;background:var(--border);min-width:50px}
+.sf{height:6px;border-radius:3px;transition:width .3s}
+.sok{background:#639922}.slow{background:#BA7517}.scrit{background:var(--red)}
+.qlbl{font-size:12px;color:var(--text2);min-width:36px;text-align:right;font-weight:700}
+.fbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.fbar select,.fbar input,select.filt,input.filt{padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--text)}
+.fr{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.fr label{font-size:12px;font-weight:700;color:var(--text2)}
+.fr input,.fr select{width:100%;padding:9px 11px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);font-size:13px;color:var(--text);outline:none}
+.fr input:focus,.fr select:focus{border-color:var(--text)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem}
+.modal{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:1.5rem;width:400px;max-width:100%;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:16px;font-weight:700;margin-bottom:1.25rem}
+.mact{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem}
+.log-it{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.log-it:last-child{border-bottom:none}
+.ldot{width:10px;height:10px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.lin{background:#639922}.lout{background:var(--red)}.ladj{background:#BA7517}.lanu{background:var(--text3)}
+.lmeta{color:var(--text2);font-size:11px;margin-top:2px}
+.lnote{font-size:11px;color:var(--text2);margin-top:3px;font-style:italic}
+.row-acts{display:flex;gap:6px}
+.obs-hi{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E}
+.spin{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--text);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;color:var(--text2)}
+@media(max-width:480px){.numpad{grid-template-columns:repeat(3,64px);gap:8px}.nk{width:64px;height:64px}.fgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="pin-screen">
+  <div class="pin-logo"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+  <div><p class="pin-title">Inventario FBO</p><p class="pin-sub">Ingresa tu PIN de acceso</p></div>
+  <div class="pin-dots"><div class="dot" id="d0"></div><div class="dot" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div></div>
+  <div class="numpad">
+    <button class="nk" onclick="pk('1')">1</button><button class="nk" onclick="pk('2')">2</button><button class="nk" onclick="pk('3')">3</button>
+    <button class="nk" onclick="pk('4')">4</button><button class="nk" onclick="pk('5')">5</button><button class="nk" onclick="pk('6')">6</button>
+    <button class="nk" onclick="pk('7')">7</button><button class="nk" onclick="pk('8')">8</button><button class="nk" onclick="pk('9')">9</button>
+    <button class="nk nk-sm" onclick="pk('clr')">Borrar</button><button class="nk" onclick="pk('0')">0</button><button class="nk nk-sm" onclick="pk('ok')">OK</button>
+  </div>
+  <p class="pin-err hidden" id="pin-err">PIN incorrecto.</p>
+  <p style="font-size:11px;color:var(--text3)">Puedes escribir con el teclado: números, Borrar (←) y Enter</p>
+  <span class="conn conn-load" id="conn-status">Conectando a la nube…</span>
+</div>
+
+<div id="main-screen" class="hidden">
+  <div class="hdr">
+    <div><h1>Inventario FBO</h1><span class="badge" id="rbdg"></span> <span class="conn conn-ok" id="conn-status2">● En la nube</span></div>
+    <div style="display:flex;gap:8px"><button class="btn" onclick="refreshAll()">↻ Actualizar</button><button class="btn" onclick="lo()">→ Salir</button></div>
+  </div>
+  <div id="alerts"></div>
+  <div class="tabs">
+    <button class="tab adminonly hidden" onclick="st('panel',this)">🛡️ Panel de Control</button>
+    <button class="tab active" onclick="st('inv',this)">Inventario</button>
+    <button class="tab" onclick="st('mov',this)">Movimientos</button>
+    <button class="tab ao hidden" onclick="st('count',this)">Conteo físico</button>
+    <button class="tab ao hidden" onclick="st('sc',this)">Supply Chain</button>
+    <button class="tab ao hidden" onclick="st('rep',this)">Reportes</button>
+    <button class="tab ao hidden" onclick="st('prov',this)">Proveedores</button>
+  </div>
+
+  <div id="t-inv">
+    <div class="metrics" id="mets"></div>
+    <div class="tbar">
+      <span class="sec">Artículos</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input class="filt" id="fsearch" placeholder="Buscar…" oninput="ri()" style="width:120px">
+        <select class="filt" id="fcat" onchange="ri()">
+          <option value="">Todas las categorías</option>
+          <option value="BEB">Bebidas</option><option value="ALI">Alimentos</option>
+          <option value="LIM">Limpieza</option><option value="BAN">Baños</option>
+        </select>
+        <select class="filt" id="fsub" onchange="ri()"><option value="">Todas las subcategorías</option></select>
+        <button class="btn ao" onclick="openAdd()">+ Agregar</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Artículo</th><th>Categoría</th><th>Stock actual (pzas)</th><th>Proveedor</th><th class="ao"></th></tr></thead>
+        <tbody id="inv-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="t-mov" class="hidden">
+    <div class="tbar">
+      <span class="sec">Movimientos</span>
+      <button class="btn btn-p" onclick="openMove()">+ Registrar movimiento</button>
+    </div>
+    <div class="fbar">
+      <select id="lcat" onchange="rl()"><option value="">Todas</option><option value="BEB">Bebidas</option><option value="ALI">Alimentos</option><option value="LIM">Limpieza</option><option value="BAN">Baños</option></select>
+      <select id="ltype" onchange="rl()"><option value="">Todos</option><option value="entrada">Entradas</option><option value="salida">Salidas</option><option value="ajuste">Ajustes</option><option value="anulacion">Anulaciones</option></select>
+    </div>
+    <div class="tbl-wrap" id="log-list"></div>
+  </div>
+
+  <div id="t-count" class="hidden">
+    <div class="warn-box">Registra aquí el <strong>conteo físico real</strong>. El sistema compara contra lo que tiene registrado y calcula la <strong>diferencia (merma)</strong> automáticamente. Cada ajuste queda firmado.</div>
+    <div class="tbar">
+      <span class="sec">Conteo físico — comparación con sistema</span>
+      <select class="filt" id="count-cat" onchange="rcount()">
+        <option value="">Todas las categorías</option>
+        <option value="BEB">Bebidas</option><option value="ALI">Alimentos</option>
+        <option value="LIM">Limpieza</option><option value="BAN">Baños</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Artículo</th><th>Sistema dice</th><th>Conteo real</th><th>Diferencia</th><th></th></tr></thead>
+        <tbody id="count-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="t-sc" class="hidden">
+    <div class="metrics" id="sc-mets"></div>
+    <div class="tbar">
+      <span class="sec">Plan de reabastecimiento — qué comprar y cuándo</span>
+      <select class="filt" id="sc-filter" onchange="rsc()">
+        <option value="urgent">Solo lo urgente</option>
+        <option value="all">Ver todo</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Artículo</th><th>Stock</th><th>Consumo/sem</th><th>Cobertura</th><th>Punto reorden</th><th>Sugerido</th><th>Acción</th></tr></thead>
+        <tbody id="sc-body"></tbody>
+      </table>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">El <strong>consumo semanal</strong> se calcula del historial de salidas (excluye eventos atípicos). Si conoces el dato real, edítalo en el artículo. <strong>Cobertura</strong> = semanas que dura el stock. <strong>Punto de reorden</strong> = consumo durante el lead time + margen de seguridad. <em>Nota: necesita varias semanas de datos para ser confiable.</em></p>
+  </div>
+
+  <div id="t-rep" class="hidden">
+    <div class="metrics" id="rep-mets"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="tbl-wrap" style="padding:14px"><p class="sec" style="margin-bottom:10px">Top salidas</p><div id="rep-top"></div></div>
+      <div class="tbl-wrap" style="padding:14px"><p class="sec" style="margin-bottom:10px">Stock crítico</p><div id="rep-crit"></div></div>
+    </div>
+    <div class="tbl-wrap" style="padding:14px;margin-bottom:12px"><p class="sec" style="margin-bottom:10px">Detección de irregularidades</p><div id="rep-disc"></div></div>
+    <button class="btn" onclick="exportCSV()">⬇ Exportar movimientos a CSV (Excel)</button>
+  </div>
+
+  <div id="t-prov" class="hidden">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Proveedor</th><th>Categoría</th><th>Cómo se pide</th><th>Frecuencia</th><th>Lead time</th><th>Contacto</th></tr></thead>
+        <tbody id="prov-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="t-panel" class="hidden">
+    <div id="risk-banner"></div>
+    <div class="metrics" id="panel-mets"></div>
+    <div class="tbl-wrap" style="padding:14px;margin-bottom:12px">
+      <p class="sec" style="margin-bottom:10px">⚠️ Alertas de seguridad activas</p>
+      <div id="panel-alerts"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="tbl-wrap" style="padding:14px"><p class="sec" style="margin-bottom:10px">Salidas por usuario (concentración)</p><div id="panel-users"></div></div>
+      <div class="tbl-wrap" style="padding:14px"><p class="sec" style="margin-bottom:10px">Movimientos fuera de horario</p><div id="panel-offhours"></div></div>
+    </div>
+    <div class="tbl-wrap" style="padding:14px">
+      <p class="sec" style="margin-bottom:10px">📋 Checklist de blindaje del administrador</p>
+      <div id="panel-checklist"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  CONEXIÓN A LA NUBE (Supabase)
+// ══════════════════════════════════════════════════════════════
+const SB_URL='https://gcyfwpzdmhbpcmfboqfi.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjeWZ3cHpkbWhicGNtZmJvcWZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NjQxNzIsImV4cCI6MjA5NjQ0MDE3Mn0.U17CAD88Sis1j_IzkSv2vl_Mrnpe2vf5NCC5HnpdKQk';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+
+const WORK_START=6, WORK_END=22;
+let role=null,userLabel='',pinBuf='';
+let items=[]; // se llena desde la nube
+let log=[];   // se llena desde la nube
+let USERS={};  // se llena desde la nube
+let connOK=false;
+
+const PROVS=[
+  {n:'SAGA QUIMICO',c:'Limpieza química',o:'WhatsApp',f:'Mensual',l:'1-2 días',ct:'Maximiliano Vizcarraga 33 2231 4956'},
+  {n:'SAMS / WALMART / COSTCO',c:'Alimentos, bebidas, insumos generales',o:'Presencial y en línea',f:'2-3 semanas',l:'1 día',ct:'Guadalupe Loza + apoyo rampa/seguridad'},
+  {n:'ULINE',c:'Consumibles, limpieza',o:'Correo y tienda en línea',f:'Cuando se requiere',l:'1-2 días',ct:'servicioaclientes@uline.com'},
+  {n:'CENTRAL PACIFIC',c:'Limpieza / almacén',o:'Correo y WhatsApp',f:'Cuando se requiere',l:'1-8 días',ct:'Ana Quiroga 3334961432 · a.quiroga@cpacificpaper.com'},
+  {n:'OFFICE GO',c:'Papelería',o:'Correo y WhatsApp',f:'Mensual',l:'1-2 días',ct:'Inés Gómez 33 1479 8308'},
+  {n:'DAVID',c:'Agua, hielo, café, kumbucha, barras',o:'—',f:'Cuando se requiere',l:'—',ct:'—'},
+  {n:'MERCADO LIBRE / AMAZON',c:'Consumibles varios',o:'Tienda en línea',f:'Cuando se requiere',l:'1-15 días',ct:'—'},
+];
+
+// ── CARGA DE DATOS DESDE LA NUBE ─────────────────────────────
+async function loadUsers(){
+  const {data,error}=await sb.from('usuarios').select('*');
+  if(error) throw error;
+  USERS={};
+  data.forEach(u=>{USERS[u.pin]={role:u.role,label:u.label,badge:u.badge};});
+}
+async function loadItems(){
+  const {data,error}=await sb.from('items').select('*').order('id');
+  if(error) throw error;
+  items=data.map(d=>({id:d.id,n:d.n,sub:d.sub,c:d.c,u:d.u,s:d.s,mn:d.mn,mx:d.mx,pp:d.pp,p:d.p,obs:d.obs||'',cs:d.cs==null?undefined:d.cs,lt:d.lt==null?undefined:d.lt}));
+}
+async function loadLog(){
+  const {data,error}=await sb.from('movimientos').select('*').order('creado',{ascending:true});
+  if(error) throw error;
+  log=data.map(d=>{
+    const dt=new Date(d.creado);
+    return {dbid:d.id,type:d.type,n:d.n,iid:d.iid,c:d.c,sub:d.sub,q:d.q,u:d.u,note:d.nota||'',
+      d:fmtDate(dt),iso:d.creado,h:dt.getHours()};
+  });
+}
+function fmtDate(dt){return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');}
+
+async function initCloud(){
+  const cs=document.getElementById('conn-status');
+  try{
+    await loadUsers();
+    connOK=true;
+    cs.textContent='● Conectado a la nube';cs.className='conn conn-ok';
+  }catch(e){
+    connOK=false;
+    cs.textContent='✕ Sin conexión a la nube';cs.className='conn conn-bad';
+    console.error('Error de conexión:',e);
+  }
+}
+initCloud();
+
+// ── PIN ──────────────────────────────────────────────────────
+function pk(k){
+  if(!connOK){const er=document.getElementById('pin-err');er.textContent='Esperando conexión a la nube…';er.classList.remove('hidden');return;}
+  const er=document.getElementById('pin-err');er.classList.add('hidden');er.textContent='PIN incorrecto.';
+  if(k==='clr'){pinBuf=pinBuf.slice(0,-1);}
+  else if(k==='ok'){ doLogin(); return; }
+  else if(pinBuf.length<4) pinBuf+=k;
+  ud();
+}
+async function doLogin(){
+  if(USERS[pinBuf]){
+    const u=USERS[pinBuf];role=u.role;userLabel=u.label;pinBuf='';ud();
+    document.getElementById('pin-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
+    const rb=document.getElementById('rbdg');rb.textContent=u.label;rb.className='badge '+u.badge;
+    document.querySelectorAll('.ao').forEach(e=>{(role==='admin'||role==='compras')?e.classList.remove('hidden'):e.classList.add('hidden');});
+    document.querySelectorAll('.adminonly').forEach(e=>{(role==='admin')?e.classList.remove('hidden'):e.classList.add('hidden');});
+    rprov();
+    await refreshAll();
+  } else {
+    const er=document.getElementById('pin-err');er.classList.remove('hidden');pinBuf='';ud();
+  }
+}
+function ud(){for(let i=0;i<4;i++){const d=document.getElementById('d'+i);i<pinBuf.length?d.classList.add('filled'):d.classList.remove('filled');}}
+function lo(){if(!confirm('¿Cerrar sesión?'))return;role=null;pinBuf='';document.getElementById('main-screen').classList.add('hidden');document.getElementById('pin-screen').classList.remove('hidden');document.getElementById('pin-err').classList.add('hidden');ud();}
+
+document.addEventListener('keydown',function(ev){
+  const pinVisible=!document.getElementById('pin-screen').classList.contains('hidden');
+  if(!pinVisible) return;
+  if(ev.key>='0'&&ev.key<='9'){ev.preventDefault();pk(ev.key);}
+  else if(ev.key==='Backspace'){ev.preventDefault();pk('clr');}
+  else if(ev.key==='Enter'){ev.preventDefault();pk('ok');}
+});
+
+// ── REFRESCO GLOBAL desde la nube ────────────────────────────
+async function refreshAll(){
+  try{
+    await Promise.all([loadItems(),loadLog()]);
+    ra();
+    const active=document.querySelector('.tab.active');
+    // re-render de la pestaña activa
+    if(!document.getElementById('t-panel').classList.contains('hidden'))rpanel();
+    if(!document.getElementById('t-sc').classList.contains('hidden'))rsc();
+    if(!document.getElementById('t-rep').classList.contains('hidden'))rr();
+    if(!document.getElementById('t-count').classList.contains('hidden'))rcount();
+  }catch(e){ console.error(e); alert('Error al actualizar datos desde la nube. Revisa tu conexión.'); }
+}
+
+// ── TABS ─────────────────────────────────────────────────────
+function st(id,el){
+  ['inv','mov','rep','prov','panel','sc','count'].forEach(t=>document.getElementById('t-'+t).classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('t-'+id).classList.remove('hidden');el.classList.add('active');
+  if(id==='rep')rr();
+  if(id==='panel')rpanel();
+  if(id==='sc')rsc();
+  if(id==='count')rcount();
+}
+
+// ── LÓGICA PURA (validada) ───────────────────────────────────
+function cl(c){return c==='BEB'?'cBEB':c==='ALI'?'cALI':c==='LIM'?'cLIM':'cBAN';}
+function cn(c){return c==='BEB'?'Bebidas':c==='ALI'?'Alimentos':c==='LIM'?'Limpieza':'Baños';}
+function minS(it){return it.mn*it.pp;}
+function scl(it){if(it.s<=0||it.s<minS(it))return 'scrit';if(it.s<minS(it)*1.4)return 'slow';return 'sok';}
+function spct(it){return Math.min(100,Math.round((it.s/Math.max(it.mx*it.pp,1))*100));}
+function isPend(it){return it.obs&&it.obs.includes('Pendiente');}
+
+function daysCovered(){
+  const isos=log.filter(l=>l.iso&&l.type==='salida').map(l=>new Date(l.iso).getTime());
+  if(isos.length<2) return 7;
+  const span=(Math.max(...isos)-Math.min(...isos))/(1000*60*60*24);
+  return Math.max(span,7);
+}
+function weeklyUse(it){
+  if(typeof it.cs==='number' && it.cs>0) return it.cs;
+  let salidas=log.filter(l=>l.iid===it.id && l.type==='salida').map(l=>l.q);
+  if(!salidas.length) return 0;
+  if(salidas.length>=4){
+    const sorted=[...salidas].sort((a,b)=>a-b);
+    const median=sorted[Math.floor(sorted.length/2)];
+    const maxV=Math.max(...salidas);
+    if(maxV>median*3) salidas=salidas.filter(q=>q!==maxV);
+  }
+  const totalOut=salidas.reduce((a,q)=>a+q,0);
+  const weeks=daysCovered()/7;
+  return weeks>0 ? +(totalOut/weeks).toFixed(1) : 0;
+}
+function leadWeeks(it){
+  const p=(it.p||'').toUpperCase();
+  let days=2;
+  if(p.includes('SAGA')||p.includes('OFFICE')) days=2;
+  else if(p.includes('ULINE')) days=2;
+  else if(p.includes('CENTRAL')) days=8;
+  else if(p.includes('SAMS')||p.includes('WALMART')||p.includes('COSTCO')) days=1;
+  else if(p.includes('MERCADO')||p.includes('AMAZON')) days=10;
+  else if(p.includes('DAVID')) days=3;
+  if(typeof it.lt==='number'&&it.lt>0) days=it.lt;
+  return days/7;
+}
+function coverageWeeks(it){const w=weeklyUse(it);if(w<=0) return Infinity;return +(it.s/w).toFixed(1);}
+function reorderPoint(it){const w=weeklyUse(it);const lw=leadWeeks(it);return Math.ceil(w*lw*1.5);}
+function suggestQty(it){const target=it.mx*it.pp;const need=Math.max(0,target-it.s);if(need<=0) return 0;return Math.ceil(need/it.pp);}
+function needsReorder(it){if(isPend(it)) return false;const w=weeklyUse(it);if(w<=0) return it.s<minS(it);return it.s<=reorderPoint(it)||it.s<minS(it);}
+
+function detectAnomalies(){
+  const alerts=[];
+  const off=log.filter(l=>l.type==='salida' && typeof l.h==='number' && (l.h<WORK_START||l.h>=WORK_END));
+  off.forEach(l=>alerts.push({sev:'alta',tipo:'Fuera de horario',txt:`${l.n} — salida de ${l.q} pzas por ${l.u} a las ${String(l.h).padStart(2,'0')}:00 (${l.d})`}));
+  const adj=log.filter(l=>l.type==='ajuste');
+  if(adj.length>=3) alerts.push({sev:'alta',tipo:'Ajustes frecuentes',txt:`${adj.length} ajustes manuales registrados. Patrón típico de merma oculta. Revisa quién y por qué.`});
+  else adj.forEach(l=>alerts.push({sev:'media',tipo:'Ajuste manual',txt:`${l.n} ajustado por ${l.u} (${l.d}): "${l.note}"`}));
+  items.forEach(it=>{
+    const outs=log.filter(l=>l.iid===it.id && l.type==='salida').map(l=>l.q).sort((a,b)=>a-b);
+    if(outs.length<3) return;
+    const median=outs[Math.floor(outs.length/2)];
+    const ref=Math.max(median, weeklyUse(it)/2, 5);
+    log.filter(l=>l.iid===it.id && l.type==='salida' && l.q > ref*3 && l.q>=10).forEach(l=>{
+      alerts.push({sev:'alta',tipo:'Salida inusual',txt:`${it.n}: salida de ${l.q} pzas (lo normal es ~${median}/transacción) por ${l.u} el ${l.d}`});
+    });
+  });
+  const sal=log.filter(l=>l.type==='salida');
+  if(sal.length>=5){
+    const byU={};sal.forEach(l=>{byU[l.u]=(byU[l.u]||0)+l.q;});
+    const total=Object.values(byU).reduce((a,b)=>a+b,0);
+    Object.entries(byU).forEach(([u,q])=>{
+      const pct=q/total;
+      if(pct>0.6) alerts.push({sev:'media',tipo:'Concentración de usuario',txt:`${u} concentra ${Math.round(pct*100)}% de todas las salidas (${q} pzas). Verifica si es normal para su rol.`});
+    });
+  }
+  return alerts;
+}
+
+// ── RENDER INVENTARIO ────────────────────────────────────────
+function ra(){ralerts();rmets();ri();rl();}
+function ralerts(){
+  const crit=items.filter(i=>i.s<minS(i)&&!isPend(i));
+  const pend=items.filter(isPend);
+  let h='';
+  if(crit.length) h+=`<div class="alert-box">⚠ <strong>Stock crítico (${crit.length}):</strong> ${crit.slice(0,7).map(i=>i.n).join(', ')}${crit.length>7?'…':''}</div>`;
+  if(pend.length&&role!=='op') h+=`<div class="warn-box">📋 <strong>${pend.length} artículos pendientes a confirmar</strong> — completar conteo físico con Guadalupe Loza.</div>`;
+  document.getElementById('alerts').innerHTML=h;
+}
+function rmets(){
+  const crit=items.filter(i=>i.s<minS(i)&&!isPend(i)).length;
+  const pend=items.filter(isPend).length;
+  document.getElementById('mets').innerHTML=`
+    <div class="met"><div class="met-l">Total artículos</div><div class="met-v">${items.length}</div></div>
+    <div class="met"><div class="met-l">Stock crítico</div><div class="met-v ${crit?'warn':''}">${crit}</div></div>
+    <div class="met"><div class="met-l">Movimientos</div><div class="met-v">${log.length}</div></div>
+    <div class="met ao ${role==='op'?'hidden':''}"><div class="met-l">Pendientes</div><div class="met-v ${pend?'warn':''}">${pend}</div></div>`;
+}
+function ri(){
+  const fc=document.getElementById('fcat').value;
+  const fsub=document.getElementById('fsub');
+  const curSub=fsub.value;
+  const search=(document.getElementById('fsearch').value||'').toLowerCase().trim();
+  const subs=[...new Set(items.filter(i=>!fc||i.c===fc).map(i=>i.sub))].sort();
+  const keepSub=subs.includes(curSub)?curSub:'';
+  fsub.innerHTML='<option value="">Todas las subcategorías</option>'+subs.map(s=>`<option ${s===keepSub?'selected':''}>${s}</option>`).join('');
+  const fsubv=fsub.value;
+  const fil=items.filter(i=>(!fc||i.c===fc)&&(!fsubv||i.sub===fsubv)&&(!search||i.n.toLowerCase().includes(search)));
+  const adm=role==='admin';
+  document.getElementById('inv-body').innerHTML=fil.map(it=>{
+    const sc=scl(it),p=spct(it);const pend=isPend(it);
+    const sd=pend?`<span style="font-size:11px;color:var(--text3);font-style:italic">Pendiente de confirmar</span>`
+      :`<div class="sbar"><div class="sbg"><div class="sf ${sc}" style="width:${p}%"></div></div><span class="qlbl">${it.s.toLocaleString()}</span></div><br><span style="font-size:10px;color:var(--text3)">mín ${minS(it).toLocaleString()} pzas · ${it.u}</span>`;
+    const hi=it.obs&&it.obs.includes('MUY')?`<span class="obs-hi">★ Muy solicitada</span> `:'';
+    const abtns=adm?`<td><div class="row-acts"><button class="btn btn-sm" onclick="openEdit(${it.id})">Editar</button><button class="btn btn-sm btn-d" onclick="delIt(${it.id})">🗑</button></div></td>`:'';
+    return `<tr><td>${hi}<strong>${it.n}</strong><br><span style="font-size:11px;color:var(--text2)">${it.sub}</span></td>
+      <td><span class="cp ${cl(it.c)}">${cn(it.c)}</span></td><td>${sd}</td>
+      <td style="font-size:12px;color:var(--text2)">${it.p}</td>${abtns}</tr>`;
+  }).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:24px">Sin artículos</td></tr>`;
+}
+function rl(){
+  const cf=document.getElementById('lcat').value,tf=document.getElementById('ltype').value;
+  const fil=[...log].reverse().filter(l=>(!cf||l.c===cf)&&(!tf||l.type===tf));
+  document.getElementById('log-list').innerHTML=fil.length?fil.map(l=>{
+    const dc=l.type==='entrada'?'lin':l.type==='salida'?'lout':l.type==='anulacion'?'lanu':'ladj';
+    const sg=l.type==='entrada'?'+':l.type==='salida'?'−':l.type==='anulacion'?'⊘':'±';
+    const vc=l.type==='entrada'?'#3B6D11':l.type==='salida'?'#A32D2D':l.type==='anulacion'?'#6b6b65':'#854F0B';
+    const adm=role==='admin'&&l.type!=='anulacion';
+    const anul=adm?`<button class="btn btn-sm btn-d" style="margin-left:8px" onclick="anular(${l.dbid})">Anular</button>`:'';
+    return `<div class="log-it"><div class="ldot ${dc}"></div><div style="flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong>${l.n}</strong><span style="font-weight:700;color:${vc}">${sg}${Math.abs(l.q)} pzas${anul}</span></div>
+      <div class="lmeta"><span class="cp ${cl(l.c)}" style="font-size:10px">${cn(l.c)}</span> · ${l.type} · ${l.u} · ${l.d}</div>
+      ${l.note?`<div class="lnote">${l.note}</div>`:''}</div></div>`;
+  }).join(''):`<div style="padding:24px;text-align:center;color:var(--text2);font-size:13px">Sin movimientos registrados.</div>`;
+}
+
+// ── CONTEO FÍSICO ────────────────────────────────────────────
+function rcount(){
+  const cc2=document.getElementById('count-cat').value;
+  const fil=items.filter(i=>(!cc2||i.c===cc2));
+  document.getElementById('count-body').innerHTML=fil.map(it=>`
+    <tr>
+      <td><strong>${it.n}</strong><br><span style="font-size:11px;color:var(--text2)">${it.u}</span></td>
+      <td style="font-weight:700">${it.s}</td>
+      <td><input type="number" min="0" id="cnt${it.id}" style="width:80px;padding:6px;border-radius:var(--rs);border:1px solid var(--border)" oninput="diff(${it.id})"></td>
+      <td id="diff${it.id}" style="font-weight:700">—</td>
+      <td><button class="btn btn-sm" onclick="aplicarConteo(${it.id})">Aplicar</button></td>
+    </tr>`).join('');
+}
+function diff(id){
+  const it=items.find(i=>i.id===id);
+  const v=document.getElementById('cnt'+id).value;
+  const cell=document.getElementById('diff'+id);
+  if(v===''){cell.textContent='—';cell.style.color='';return;}
+  const d=parseInt(v)-it.s;
+  cell.textContent=d>0?'+'+d:d;
+  cell.style.color=d<0?'var(--red)':d>0?'var(--amber)':'var(--green)';
+}
+async function aplicarConteo(id){
+  const it=items.find(i=>i.id===id);
+  const v=document.getElementById('cnt'+id).value;
+  if(v===''){alert('Escribe la cantidad contada.');return;}
+  const real=parseInt(v);if(isNaN(real)||real<0){alert('Cantidad inválida.');return;}
+  const d=real-it.s;
+  if(d===0){alert('El conteo coincide con el sistema. Sin ajuste necesario.');return;}
+  if(!confirm(`Diferencia de ${d>0?'+':''}${d} pzas en ${it.n}.\nSistema: ${it.s} → Real: ${real}\n¿Aplicar este ajuste?`))return;
+  await registrarMov(it,'ajuste',real,`Conteo físico: sistema decía ${it.s}, real ${real} (dif ${d>0?'+':''}${d})`);
+  await refreshAll();rcount();
+}
+
+// ── SUPPLY CHAIN ─────────────────────────────────────────────
+function rsc(){
+  const fe=document.getElementById('sc-filter');const filter=fe?fe.value:'urgent';
+  const list=items.filter(i=>!isPend(i)).filter(i=>filter==='all'?true:needsReorder(i));
+  list.sort((a,b)=>coverageWeeks(a)-coverageWeeks(b));
+  const totalReorder=items.filter(needsReorder).length;
+  const critical=items.filter(i=>!isPend(i)&&coverageWeeks(i)<leadWeeks(i)).length;
+  const cs=items.filter(i=>!isPend(i)&&isFinite(coverageWeeks(i))).map(coverageWeeks);
+  const avgCov=cs.length?(cs.reduce((a,b)=>a+b,0)/cs.length).toFixed(1):'—';
+  document.getElementById('sc-mets').innerHTML=`
+    <div class="met"><div class="met-l">Por reordenar</div><div class="met-v ${totalReorder?'warn':''}">${totalReorder}</div></div>
+    <div class="met"><div class="met-l">Riesgo de quiebre</div><div class="met-v ${critical?'warn':''}">${critical}</div></div>
+    <div class="met"><div class="met-l">Cobertura promedio</div><div class="met-v">${avgCov}<span style="font-size:12px;color:var(--text3)"> sem</span></div></div>`;
+  document.getElementById('sc-body').innerHTML=list.length?list.map(it=>{
+    const w=weeklyUse(it);const cov=coverageWeeks(it);const rop=reorderPoint(it);const sug=suggestQty(it);
+    const covTxt=isFinite(cov)?cov+' sem':'—';
+    const covColor=cov<leadWeeks(it)?'color:var(--red);font-weight:700':cov<leadWeeks(it)*2?'color:var(--amber);font-weight:700':'';
+    const manual=typeof it.cs==='number'&&it.cs>0;
+    return `<tr><td><strong>${it.n}</strong><br><span style="font-size:11px;color:var(--text2)">${it.p}</span></td>
+      <td style="font-weight:700">${it.s}</td><td>${w>0?w+(manual?' ✏️':''):'—'}</td>
+      <td style="${covColor}">${covTxt}</td><td>${rop>0?rop:'—'}</td>
+      <td style="font-weight:700">${sug>0?sug+' '+(it.pp>1?'paq':'pz'):'—'}</td>
+      <td>${needsReorder(it)?'<span style="color:var(--red);font-weight:700;font-size:12px">⚠ Comprar</span>':'<span style="color:var(--green);font-size:12px">OK</span>'}</td></tr>`;
+  }).join(''):`<tr><td colspan="7" style="text-align:center;color:var(--green);padding:24px;font-weight:600">✓ Nada urgente por reordenar</td></tr>`;
+}
+
+// ── REPORTES ─────────────────────────────────────────────────
+function rr(){
+  const sal=log.filter(l=>l.type==='salida');
+  const cnt={};sal.forEach(l=>{cnt[l.n]=(cnt[l.n]||0)+l.q;});
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const te=log.filter(l=>l.type==='entrada').reduce((a,l)=>a+l.q,0);
+  const ts=sal.reduce((a,l)=>a+l.q,0);
+  const adj=log.filter(l=>l.type==='ajuste').length;
+  const crit=items.filter(i=>i.s<minS(i)&&!isPend(i));
+  const mx=Math.max(...Object.values(cnt),1);
+  document.getElementById('rep-mets').innerHTML=`
+    <div class="met"><div class="met-l">Total entradas</div><div class="met-v">${te.toLocaleString()}</div></div>
+    <div class="met"><div class="met-l">Total salidas</div><div class="met-v">${ts.toLocaleString()}</div></div>
+    <div class="met"><div class="met-l">Ajustes</div><div class="met-v ${adj>3?'warn':''}">${adj}</div></div>
+    <div class="met"><div class="met-l">Críticos</div><div class="met-v ${crit.length?'warn':''}">${crit.length}</div></div>`;
+  document.getElementById('rep-top').innerHTML=top.length?top.map(([n,q])=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="flex:1">${n}</span><div class="sbg" style="width:80px"><div class="sf scrit" style="width:${Math.round((q/mx)*100)}%"></div></div>
+      <span style="min-width:28px;text-align:right;font-weight:700">${q}</span></div>`).join(''):'<p style="color:var(--text2);font-size:13px">Sin datos aún.</p>';
+  document.getElementById('rep-crit').innerHTML=crit.length?crit.slice(0,8).map(i=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span>${i.n}</span><span style="color:var(--red);font-weight:700">${i.s} / mín ${minS(i)}</span></div>`).join(''):'<p style="color:#3B6D11;font-size:13px;font-weight:700">✓ Todo en orden</p>';
+  document.getElementById('rep-disc').innerHTML=`
+    <div style="background:var(--abg);border:1px solid #FAC775;border-radius:var(--rs);padding:12px 14px;font-size:13px;color:#412402;margin-bottom:10px">
+      ⚠ <strong>${adj} ajuste(s) manuales</strong>. Ajustes frecuentes sin justificación pueden indicar robo hormiga.<br>
+      <strong>Recomendación:</strong> conteo físico semanal con Guadalupe Loza + un segundo operador. Usa la pestaña "Conteo físico".</div>
+    <p style="font-size:12px;color:var(--text2);line-height:1.7"><strong>Flujo de compras:</strong> Saga Químico por WhatsApp · SAMS/Walmart presencial · Uline y Central Pacific por correo · David coordina agua, hielo, café.</p>`;
+}
+
+// ── PANEL DE CONTROL ─────────────────────────────────────────
+function rpanel(){
+  const anomalies=detectAnomalies();
+  const altas=anomalies.filter(a=>a.sev==='alta').length;
+  const medias=anomalies.filter(a=>a.sev==='media').length;
+  const reorder=items.filter(needsReorder);
+  const pend=items.filter(isPend);
+  const riskScore=Math.min(100, altas*20 + medias*8);
+  let rb='', rc='';
+  if(riskScore===0){rb='✓ Sin señales de riesgo detectadas';rc='background:var(--gbg);color:var(--green);border:1px solid #b6d98a';}
+  else if(riskScore<30){rb=`Riesgo bajo — ${anomalies.length} señal(es) por revisar`;rc='background:var(--abg);color:var(--amber);border:1px solid #FAC775';}
+  else {rb=`⚠️ Riesgo elevado — ${altas} alerta(s) de alta prioridad`;rc='background:var(--rbg);color:var(--red);border:1px solid #F7C1C1';}
+  document.getElementById('risk-banner').innerHTML=`<div style="padding:14px 16px;border-radius:var(--r);font-weight:700;font-size:14px;margin-bottom:12px;${rc}">${rb}</div>`;
+  document.getElementById('panel-mets').innerHTML=`
+    <div class="met"><div class="met-l">Índice de riesgo</div><div class="met-v ${riskScore>=30?'warn':''}">${riskScore}<span style="font-size:12px;color:var(--text3)">/100</span></div></div>
+    <div class="met"><div class="met-l">Alertas alta prioridad</div><div class="met-v ${altas?'warn':''}">${altas}</div></div>
+    <div class="met"><div class="met-l">Por reordenar</div><div class="met-v ${reorder.length?'warn':''}">${reorder.length}</div></div>
+    <div class="met"><div class="met-l">Pendientes conteo</div><div class="met-v ${pend.length?'warn':''}">${pend.length}</div></div>
+    <div class="met"><div class="met-l">Total movimientos</div><div class="met-v">${log.length}</div></div>`;
+  document.getElementById('panel-alerts').innerHTML=anomalies.length?anomalies.map(a=>{
+    const col=a.sev==='alta'?'var(--red)':'var(--amber)';const bg=a.sev==='alta'?'var(--rbg)':'var(--abg)';
+    return `<div style="display:flex;gap:10px;padding:9px 12px;border-radius:var(--rs);background:${bg};margin-bottom:6px;font-size:13px">
+      <span style="font-weight:700;color:${col};white-space:nowrap">${a.tipo}</span><span style="color:var(--text2)">${a.txt}</span></div>`;
+  }).join(''):'<p style="color:var(--green);font-size:13px;font-weight:700">✓ Ninguna anomalía detectada.</p>';
+  const sal=log.filter(l=>l.type==='salida');
+  const byU={};sal.forEach(l=>{byU[l.u]=(byU[l.u]||0)+l.q;});
+  const totalU=Object.values(byU).reduce((a,b)=>a+b,0)||1;
+  const ents=Object.entries(byU).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('panel-users').innerHTML=ents.length?ents.map(([u,q])=>{
+    const pct=Math.round((q/totalU)*100);const danger=pct>60;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="flex:1">${u}</span><div class="sbg" style="width:90px"><div class="sf ${danger?'scrit':'sok'}" style="width:${pct}%"></div></div>
+      <span style="min-width:64px;text-align:right;font-weight:700;${danger?'color:var(--red)':''}">${q} (${pct}%)</span></div>`;
+  }).join(''):'<p style="color:var(--text2);font-size:13px">Aún no hay salidas registradas.</p>';
+  const off=log.filter(l=>typeof l.h==='number' && (l.h<WORK_START||l.h>=WORK_END));
+  document.getElementById('panel-offhours').innerHTML=off.length?off.slice(-10).reverse().map(l=>`
+    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span>${l.n} · ${l.u}</span><span style="color:var(--red);font-weight:700">${String(l.h).padStart(2,'0')}:00</span></div>`).join(''):'<p style="color:var(--green);font-size:13px;font-weight:700">✓ Sin movimientos fuera de horario.</p>';
+  const checklist=[
+    {q:'Conteo físico semanal con 2 personas (Guadalupe + 1)',done:false,hint:'Usa la pestaña Conteo físico cada semana'},
+    {q:'Revisar este panel cada lunes',done:false,hint:'5 minutos para detectar patrones'},
+    {q:`Completar conteo de ${pend.length} artículos pendientes`,done:pend.length===0,hint:'Limpieza y baños sin stock inicial'},
+    {q:'Cada operador usa SU propio PIN (no compartir)',done:false,hint:'Si comparten PIN se pierde la trazabilidad'},
+    {q:'Notas de salida específicas y verificables',done:false,hint:'"Reposición sala VIP" sí; "varios" no'},
+  ];
+  document.getElementById('panel-checklist').innerHTML=checklist.map(c=>`
+    <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;align-items:flex-start">
+      <span style="font-size:15px">${c.done?'✅':'⬜'}</span>
+      <div><div style="font-weight:600">${c.q}</div><div style="font-size:11px;color:var(--text3)">${c.hint}</div></div></div>`).join('');
+}
+
+function rprov(){
+  document.getElementById('prov-body').innerHTML=PROVS.map(p=>`<tr>
+    <td><strong>${p.n}</strong></td><td style="font-size:12px;color:var(--text2)">${p.c}</td>
+    <td style="font-size:12px">${p.o}</td><td style="font-size:12px">${p.f}</td>
+    <td style="font-size:12px">${p.l}</td><td style="font-size:12px;color:var(--text2)">${p.ct}</td></tr>`).join('');
+}
+
+// ── ESCRITURA A LA NUBE ──────────────────────────────────────
+async function registrarMov(it,type,qty,note){
+  // 1) registrar el movimiento (la hora la pone el servidor con default now())
+  const {error:e1}=await sb.from('movimientos').insert({type,n:it.n,iid:it.id,c:it.c,sub:it.sub,q:qty,u:userLabel,nota:note});
+  if(e1) throw e1;
+  // 2) actualizar el stock del artículo
+  let newStock=it.s;
+  if(type==='entrada') newStock=it.s+qty;
+  else if(type==='salida') newStock=Math.max(0,it.s-qty);
+  else if(type==='ajuste') newStock=Math.max(0,qty);
+  const {error:e2}=await sb.from('items').update({s:newStock}).eq('id',it.id);
+  if(e2) throw e2;
+}
+
+function closeM(){document.getElementById('modal-root').innerHTML='';}
+function modal(h){document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeM()">${h}</div>`;}
+
+function openMove(){
+  const opts=items.map(i=>`<option value="${i.id}">${i.n} — ${i.s} pzas (${cn(i.c)})</option>`).join('');
+  modal(`<div class="modal"><h2>Registrar movimiento</h2>
+    <div class="fr"><label>Artículo</label><select id="vi">${opts}</select></div>
+    <div class="fr"><label>Tipo</label><select id="vt" onchange="document.getElementById('vqlabel').textContent=this.value==='ajuste'?'Cantidad final real (resultado del conteo)':'Cantidad (piezas)'">
+      <option value="entrada">Entrada — compra o recepción</option>
+      <option value="salida">Salida — consumo, dispensador, uso</option>
+      ${role==='admin'?'<option value="ajuste">Ajuste — corrección por conteo físico</option>':''}
+    </select></div>
+    <div class="fr"><label id="vqlabel">Cantidad (piezas)</label><input id="vq" type="number" value="1" min="1"></div>
+    <div class="fr"><label>Nota obligatoria</label><input id="vn" placeholder="Ej. Reposición charola sala VIP, compra SAMS..."></div>
+    <div class="mact"><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" id="vsave" onclick="svMove()">Registrar</button></div>
+  </div>`);
+}
+async function svMove(){
+  const iid=parseInt(document.getElementById('vi').value);
+  const it=items.find(i=>i.id===iid);
+  if(!it){alert('Selecciona un artículo válido.');return;}
+  const type=document.getElementById('vt').value;
+  const qty=parseInt(document.getElementById('vq').value);
+  const note=document.getElementById('vn').value.trim();
+  if(!qty||qty<1){alert('La cantidad debe ser un número mayor a cero.');return;}
+  if(!note){alert('La nota es obligatoria — es clave para detectar irregularidades.');return;}
+  if(type==='ajuste' && role!=='admin'){alert('Solo el Administrador puede hacer ajustes de inventario.');return;}
+  const btn=document.getElementById('vsave');btn.disabled=true;btn.textContent='Guardando…';
+  try{
+    await registrarMov(it,type,qty,note);
+    closeM();await refreshAll();
+  }catch(e){console.error(e);alert('Error al guardar en la nube. Intenta de nuevo.');btn.disabled=false;btn.textContent='Registrar';}
+}
+
+async function anular(dbid){
+  const mov=log.find(l=>l.dbid===dbid);
+  if(!mov){alert('Movimiento no encontrado.');return;}
+  const motivo=prompt('Motivo de la anulación (obligatorio):');
+  if(motivo===null)return;
+  if(!motivo.trim()){alert('Debes escribir un motivo.');return;}
+  const it=items.find(i=>i.id===mov.iid);
+  if(!it){alert('El artículo de este movimiento ya no existe.');return;}
+  // revertir el efecto en stock
+  let newStock=it.s;
+  if(mov.type==='entrada') newStock=Math.max(0,it.s-mov.q);
+  else if(mov.type==='salida') newStock=it.s+mov.q;
+  else {alert('Los ajustes no se anulan; haz un nuevo conteo físico.');return;}
+  if(!confirm(`Anular ${mov.type} de ${mov.q} pzas en ${mov.n}.\nStock: ${it.s} → ${newStock}\n¿Confirmar?`))return;
+  try{
+    await sb.from('items').update({s:newStock}).eq('id',it.id);
+    await sb.from('movimientos').insert({type:'anulacion',n:mov.n,iid:mov.iid,c:mov.c,sub:mov.sub,q:mov.q,u:userLabel,nota:'ANULA mov #'+dbid+': '+motivo.trim()});
+    await refreshAll();
+  }catch(e){console.error(e);alert('Error al anular.');}
+}
+
+function openAdd(){
+  modal(`<div class="modal"><h2>Agregar artículo</h2>
+    <div class="fgrid">
+      <div class="fr" style="grid-column:1/-1"><label>Nombre (oficial en sistema)</label><input id="mn" placeholder="Ej. Coca Cola Mini"></div>
+      <div class="fr"><label>Categoría</label><select id="mc"><option value="BEB">Bebidas</option><option value="ALI">Alimentos</option><option value="LIM">Limpieza</option><option value="BAN">Baños</option></select></div>
+      <div class="fr"><label>Subcategoría</label><input id="msub" placeholder="Ej. Refrescos, Galletas..."></div>
+      <div class="fr"><label>Unidad de compra</label><input id="mu" placeholder="PAQUETE (24pz)..."></div>
+      <div class="fr"><label>Piezas por paquete</label><input id="mpp" type="number" value="1" min="1"></div>
+      <div class="fr"><label>Stock actual (pzas)</label><input id="mq" type="number" value="0" min="0"></div>
+      <div class="fr"><label>Mínimo (paquetes)</label><input id="mmin" type="number" value="3" min="1"></div>
+      <div class="fr"><label>Máximo (paquetes)</label><input id="mmax" type="number" value="20" min="1"></div>
+      <div class="fr" style="grid-column:1/-1"><label>Proveedor</label><input id="mprov" placeholder="SAMS, SAGA QUIMICO..."></div>
+      <div class="fr" style="grid-column:1/-1"><label>Observaciones</label><input id="mobs" placeholder="Notas adicionales"></div>
+    </div>
+    <div class="mact"><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" id="asave" onclick="svAdd()">Guardar</button></div>
+  </div>`);
+}
+async function svAdd(){
+  const n=document.getElementById('mn').value.trim();if(!n){alert('El nombre es obligatorio.');return;}
+  const newId=(items.reduce((mx,i)=>Math.max(mx,i.id),0)||0)+1;
+  const obj={id:newId,n,sub:document.getElementById('msub').value||'General',c:document.getElementById('mc').value,
+    u:document.getElementById('mu').value||'—',pp:parseInt(document.getElementById('mpp').value)||1,
+    s:parseInt(document.getElementById('mq').value)||0,mn:parseInt(document.getElementById('mmin').value)||3,
+    mx:parseInt(document.getElementById('mmax').value)||20,p:document.getElementById('mprov').value||'—',
+    obs:document.getElementById('mobs').value||''};
+  const btn=document.getElementById('asave');btn.disabled=true;btn.textContent='Guardando…';
+  try{
+    const {error}=await sb.from('items').insert(obj);if(error)throw error;
+    closeM();await refreshAll();
+  }catch(e){console.error(e);alert('Error al guardar el artículo.');btn.disabled=false;btn.textContent='Guardar';}
+}
+
+function openEdit(id){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  modal(`<div class="modal"><h2>Editar — ${it.n}</h2>
+    <div class="fgrid">
+      <div class="fr" style="grid-column:1/-1"><label>Nombre</label><input id="en" value="${it.n.replace(/"/g,'&quot;')}"></div>
+      <div class="fr"><label>Categoría</label><select id="ec">
+        <option value="BEB" ${it.c==='BEB'?'selected':''}>Bebidas</option><option value="ALI" ${it.c==='ALI'?'selected':''}>Alimentos</option>
+        <option value="LIM" ${it.c==='LIM'?'selected':''}>Limpieza</option><option value="BAN" ${it.c==='BAN'?'selected':''}>Baños</option></select></div>
+      <div class="fr"><label>Subcategoría</label><input id="esub" value="${(it.sub||'').replace(/"/g,'&quot;')}"></div>
+      <div class="fr"><label>Unidad</label><input id="eu" value="${(it.u||'').replace(/"/g,'&quot;')}"></div>
+      <div class="fr"><label>Pzas por paquete</label><input id="epp" type="number" value="${it.pp}"></div>
+      <div class="fr"><label>Stock actual (pzas)</label><input id="eq" type="number" value="${it.s}"></div>
+      <div class="fr"><label>Mínimo (paquetes)</label><input id="emin" type="number" value="${it.mn}"></div>
+      <div class="fr"><label>Máximo (paquetes)</label><input id="emax" type="number" value="${it.mx}"></div>
+      <div class="fr"><label>Consumo semanal real (pzas, opcional)</label><input id="ecs" type="number" min="0" value="${typeof it.cs==='number'?it.cs:''}" placeholder="Auto si lo dejas vacío"></div>
+      <div class="fr"><label>Lead time real (días, opcional)</label><input id="elt" type="number" min="0" value="${typeof it.lt==='number'?it.lt:''}" placeholder="Auto por proveedor"></div>
+      <div class="fr" style="grid-column:1/-1"><label>Proveedor</label><input id="eprov" value="${(it.p||'').replace(/"/g,'&quot;')}"></div>
+      <div class="fr" style="grid-column:1/-1"><label>Observaciones</label><input id="eobs" value="${(it.obs||'').replace(/"/g,'&quot;')}"></div>
+    </div>
+    <div class="mact"><button class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p" id="esave" onclick="svEdit(${id})">Guardar</button></div>
+  </div>`);
+}
+async function svEdit(id){
+  const it=items.find(i=>i.id===id);
+  const csv=document.getElementById('ecs').value;const ltv=document.getElementById('elt').value;
+  const obj={n:document.getElementById('en').value.trim()||it.n,c:document.getElementById('ec').value,
+    sub:document.getElementById('esub').value||it.sub,u:document.getElementById('eu').value||it.u,
+    pp:parseInt(document.getElementById('epp').value)||it.pp,s:parseInt(document.getElementById('eq').value)||0,
+    mn:parseInt(document.getElementById('emin').value)||1,mx:parseInt(document.getElementById('emax').value)||1,
+    p:document.getElementById('eprov').value||it.p,obs:document.getElementById('eobs').value||'',
+    cs:csv===''?null:Math.max(0,parseInt(csv)||0),lt:ltv===''?null:Math.max(0,parseInt(ltv)||0)};
+  const btn=document.getElementById('esave');btn.disabled=true;btn.textContent='Guardando…';
+  try{
+    const {error}=await sb.from('items').update(obj).eq('id',id);if(error)throw error;
+    closeM();await refreshAll();
+  }catch(e){console.error(e);alert('Error al guardar cambios.');btn.disabled=false;btn.textContent='Guardar';}
+}
+async function delIt(id){
+  if(!confirm('¿Eliminar este artículo? Se borra de la nube para todos.'))return;
+  try{
+    const {error}=await sb.from('items').delete().eq('id',id);if(error)throw error;
+    await refreshAll();
+  }catch(e){console.error(e);alert('Error al eliminar.');}
+}
+
+// ── EXPORTAR CSV ─────────────────────────────────────────────
+function exportCSV(){
+  const rows=[['Fecha','Tipo','Articulo','Categoria','Cantidad','Usuario','Nota']];
+  log.forEach(l=>rows.push([l.d,l.type,l.n,cn(l.c),l.q,l.u,(l.note||'').replace(/"/g,'""')]));
+  const csv=rows.map(r=>r.map(c=>`"${String(c)}"`).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='movimientos-fbo-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
